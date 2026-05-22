@@ -273,6 +273,52 @@ html, body {
   font-size: 11px;
 }
 
+/* HTTP status code badges */
+.badge-code {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+.code-2xx { background: #0d2e1a; color: var(--success); }
+.code-3xx { background: #2e1f00; color: var(--warning); }
+.code-4xx { background: #2e0d0d; color: var(--error); }
+.code-err { background: var(--surface-2); color: var(--text-muted); }
+
+/* Similarity cell */
+.cell-sim {
+  white-space: nowrap;
+}
+.sim-val {
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+.sim-high { color: var(--success); }
+.sim-mid  { color: var(--warning); }
+.sim-low  { color: var(--error); }
+.sim-na   { color: var(--text-muted); }
+.sim-sep  { color: var(--text-muted); font-size: 11px; }
+
+/* HTTP fetch error spanning multiple cells */
+.cell-http-err {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font);
+  font-style: italic;
+}
+
+/* Cloaking alert row — similarity < 70% detected */
+.row-cloak {
+  border-left: 3px solid var(--error) !important;
+  background: rgba(239, 68, 68, 0.06) !important;
+}
+.row-cloak:hover {
+  background: rgba(239, 68, 68, 0.11) !important;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

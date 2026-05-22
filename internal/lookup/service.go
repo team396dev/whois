@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"whois-parser/internal/httpcheck"
 	"whois-parser/internal/rdap"
 	"whois-parser/internal/whois"
 
@@ -13,10 +14,11 @@ import (
 )
 
 type Result struct {
-	Domain    string `json:"domain"`
-	Registrar string `json:"registrar,omitempty"`
-	Source    string `json:"source"` // "whois" | "rdap" | "error"
-	Error     string `json:"error,omitempty"`
+	Domain    string            `json:"domain"`
+	Registrar string            `json:"registrar,omitempty"`
+	Source    string            `json:"source"` // "whois" | "rdap" | "error"
+	Error     string            `json:"error,omitempty"`
+	HTTP      *httpcheck.Result `json:"http,omitempty"`
 }
 
 // per-server rate limiters to avoid hammering WHOIS servers.
@@ -48,13 +50,19 @@ func extractTLD(domain string) string {
 	return parts[len(parts)-1]
 }
 
-// Lookup resolves the registrar for a domain via WHOIS, falling back to RDAP.
+// Lookup resolves the registrar for a domain via WHOIS/RDAP and runs HTTP checks concurrently.
 func Lookup(domain string) Result {
 	domain = strings.ToLower(strings.TrimSpace(domain))
 	tld := extractTLD(domain)
 	if tld == "" {
 		return Result{Domain: domain, Source: "error", Error: "invalid domain"}
 	}
+
+	// HTTP checks run concurrently with WHOIS/RDAP to minimise total latency.
+	httpCh := make(chan httpcheck.Result, 1)
+	go func() { httpCh <- httpcheck.Check(domain) }()
+
+	var registrar, source string
 
 	cfg, ok := whois.TLDConfigs[tld]
 	if ok {
@@ -65,7 +73,7 @@ func Lookup(domain string) Result {
 		if err == nil {
 			reg := whois.ExtractRegistrar(raw, cfg.RegistrarField)
 			if reg != "" {
-				return Result{Domain: domain, Registrar: reg, Source: "whois"}
+				registrar, source = reg, "whois"
 			}
 		}
 	} else {
@@ -74,16 +82,23 @@ func Lookup(domain string) Result {
 		if err == nil {
 			reg := whois.ExtractRegistrar(raw, []string{"Registrar:", "registrar:", "Registrar Name:"})
 			if reg != "" {
-				return Result{Domain: domain, Registrar: reg, Source: "whois"}
+				registrar, source = reg, "whois"
 			}
 		}
 	}
 
-	// RDAP fallback
-	reg, err := rdap.Query(domain)
-	if err == nil && reg != "" {
-		return Result{Domain: domain, Registrar: reg, Source: "rdap"}
+	if registrar == "" {
+		// RDAP fallback
+		reg, err := rdap.Query(domain)
+		if err == nil && reg != "" {
+			registrar, source = reg, "rdap"
+		}
 	}
 
-	return Result{Domain: domain, Source: "error", Error: "registrar not found"}
+	httpResult := <-httpCh
+
+	if registrar == "" {
+		return Result{Domain: domain, Source: "error", Error: "registrar not found", HTTP: &httpResult}
+	}
+	return Result{Domain: domain, Registrar: registrar, Source: source, HTTP: &httpResult}
 }

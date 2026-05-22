@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -15,6 +16,25 @@ func maxDomains() int {
 		}
 	}
 	return 500
+}
+
+// normalizeDomain strips URL scheme, credentials, path, port, and www prefix.
+// Accepts plain domains (example.com) and full URLs (https://www.example.com/path).
+func normalizeDomain(d string) string {
+	d = strings.ToLower(strings.TrimSpace(d))
+	if d == "" {
+		return ""
+	}
+	if !strings.Contains(d, "://") {
+		d = "https://" + d
+	}
+	u, err := url.Parse(d)
+	if err != nil || u.Hostname() == "" {
+		return ""
+	}
+	host := u.Hostname()
+	host = strings.TrimPrefix(host, "www.")
+	return host
 }
 
 type lookupRequest struct {
@@ -34,11 +54,11 @@ func LookupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Deduplicate and sanitize
+	// Deduplicate and sanitize (also strips URL format)
 	seen := map[string]bool{}
 	var domains []string
 	for _, d := range req.Domains {
-		d = strings.ToLower(strings.TrimSpace(d))
+		d = normalizeDomain(d)
 		if d == "" || seen[d] {
 			continue
 		}

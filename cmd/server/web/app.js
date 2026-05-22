@@ -2,22 +2,31 @@
 
 const $ = id => document.getElementById(id);
 
-const elInput    = $('domains-input');
+const elInput     = $('domains-input');
 const elBtnLookup = $('btn-lookup');
-const elBtnNew   = $('btn-new');
-const elBtnCopy  = $('btn-copy');
-const elCounter  = $('counter');
-const elProgress = $('progress');
+const elBtnNew    = $('btn-new');
+const elBtnCopy   = $('btn-copy');
+const elCounter   = $('counter');
+const elProgress  = $('progress');
 const elProgressBar = $('progress-bar');
-const elBody     = $('results-body');
-const elStats    = $('stats-section');
+const elBody      = $('results-body');
+const elStats     = $('stats-section');
 const elStatsBars = $('stats-bars');
 const elPlaceholder = $('placeholder-row');
 
 let results = [];
 let total = 0;
 let done = 0;
-let activeSource = null;
+
+// ── Domain normalisation (mirrors backend normalizeDomain) ────────────────────
+function normalizeDomain(s) {
+  s = s.trim().toLowerCase();
+  s = s.replace(/^https?:\/\//i, '');   // strip scheme
+  s = s.replace(/[/?#].*$/, '');         // strip path / query / fragment
+  s = s.replace(/:\d+$/, '');            // strip port
+  s = s.replace(/^www\./, '');           // strip www.
+  return s;
+}
 
 // ── Input counter ─────────────────────────────────────────────────────────────
 elInput.addEventListener('input', updateCounter);
@@ -34,7 +43,7 @@ function updateCounter() {
 
 function parseDomains(raw) {
   return raw.split('\n')
-    .map(s => s.trim().toLowerCase())
+    .map(s => normalizeDomain(s))
     .filter(s => s.length > 0 && s.includes('.'));
 }
 
@@ -77,24 +86,16 @@ function startLookup() {
 
     function pump() {
       reader.read().then(({ done: streamDone, value }) => {
-        if (streamDone) {
-          finishLookup();
-          return;
-        }
+        if (streamDone) { finishLookup(); return; }
         buf += decoder.decode(value, { stream: true });
         const parts = buf.split('\n\n');
-        buf = parts.pop(); // incomplete chunk
+        buf = parts.pop();
         for (const part of parts) {
           const line = part.trim();
-          if (line.startsWith('data: ')) {
-            handleEvent(line.slice(6));
-          }
+          if (line.startsWith('data: ')) handleEvent(line.slice(6));
         }
         pump();
-      }).catch(err => {
-        console.error('SSE read error', err);
-        finishLookup();
-      });
+      }).catch(err => { console.error('SSE read error', err); finishLookup(); });
     }
     pump();
   }).catch(err => {
@@ -112,7 +113,6 @@ function handleEvent(json) {
     return;
   }
 
-  // individual domain result
   results.push(ev);
   done++;
   appendRow(ev);
@@ -122,13 +122,16 @@ function handleEvent(json) {
   elCounter.textContent = `${done} / ${total}`;
 }
 
+// ── Row rendering ─────────────────────────────────────────────────────────────
 function appendRow(r) {
   const tr = document.createElement('tr');
 
+  // Domain
   const tdDomain = document.createElement('td');
   tdDomain.textContent = r.domain;
   tr.appendChild(tdDomain);
 
+  // Registrar
   const tdReg = document.createElement('td');
   if (r.source === 'error') {
     tdReg.className = 'cell-error';
@@ -139,6 +142,7 @@ function appendRow(r) {
   }
   tr.appendChild(tdReg);
 
+  // Source badge
   const tdSrc = document.createElement('td');
   const badge = document.createElement('span');
   badge.className = `badge badge-${r.source}`;
@@ -146,7 +150,83 @@ function appendRow(r) {
   tdSrc.appendChild(badge);
   tr.appendChild(tdSrc);
 
+  // HTTP check columns
+  const h = r.http;
+  if (h && !h.http_error) {
+    tr.appendChild(makeCodeCell(h.direct_code));
+    tr.appendChild(makeCodeCell(h.bot_code));
+    tr.appendChild(makeCodeCell(h.ref_code));
+    tr.appendChild(makeSimCell(h.sim_bot_dir, h.sim_ref_dir));
+
+    // Flag row if either similarity is low
+    const sims = [h.sim_bot_dir, h.sim_ref_dir].filter(v => v != null);
+    if (sims.some(v => v < 70)) tr.classList.add('row-cloak');
+  } else {
+    const errMsg = h ? h.http_error : '—';
+    tr.appendChild(makeEmptyCell(4, errMsg));
+  }
+
   elBody.appendChild(tr);
+}
+
+function makeCodeCell(code) {
+  const td = document.createElement('td');
+  if (!code) {
+    td.innerHTML = '<span class="badge-code code-err">—</span>';
+    return td;
+  }
+  const badge = document.createElement('span');
+  badge.className = 'badge-code ' + codeClass(code);
+  badge.textContent = code;
+  td.appendChild(badge);
+  return td;
+}
+
+function codeClass(code) {
+  if (code >= 200 && code < 300) return 'code-2xx';
+  if (code >= 300 && code < 400) return 'code-3xx';
+  if (code >= 400)               return 'code-4xx';
+  return 'code-err';
+}
+
+function makeSimCell(simBot, simRef) {
+  const td = document.createElement('td');
+  td.className = 'cell-sim';
+
+  function simSpan(val, label) {
+    const s = document.createElement('span');
+    if (val == null) {
+      s.className = 'sim-val sim-na';
+      s.textContent = '—';
+    } else {
+      s.className = 'sim-val ' + simClass(val);
+      s.textContent = val + '%';
+    }
+    s.title = label;
+    return s;
+  }
+
+  td.appendChild(simSpan(simBot, 'Googlebot vs Direct'));
+  const sep = document.createElement('span');
+  sep.className = 'sim-sep';
+  sep.textContent = ' · ';
+  td.appendChild(sep);
+  td.appendChild(simSpan(simRef, 'Google-Ref vs Direct'));
+  return td;
+}
+
+function simClass(pct) {
+  if (pct >= 90) return 'sim-high';
+  if (pct >= 70) return 'sim-mid';
+  return 'sim-low';
+}
+
+function makeEmptyCell(colspan, text) {
+  const td = document.createElement('td');
+  td.colSpan = colspan;
+  td.className = 'cell-http-err';
+  td.textContent = text || '—';
+  return td;
 }
 
 function finishLookup() {
@@ -191,7 +271,6 @@ function renderStats(stats, total) {
     row.appendChild(pctEl);
     elStatsBars.appendChild(row);
 
-    // Animate bar
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { fill.style.width = pct + '%'; });
     });
@@ -202,10 +281,20 @@ function renderStats(stats, total) {
 
 // ── CSV copy ──────────────────────────────────────────────────────────────────
 function copyCSV() {
-  const lines = ['domain,registrar,source'];
+  const lines = ['domain,registrar,source,direct_code,bot_code,ref_code,sim_bot,sim_ref'];
   for (const r of results) {
     const reg = r.source === 'error' ? '' : (r.registrar || '');
-    lines.push(`${r.domain},${csvEscape(reg)},${r.source}`);
+    const h = r.http || {};
+    lines.push([
+      r.domain,
+      csvEscape(reg),
+      r.source,
+      h.direct_code || '',
+      h.bot_code || '',
+      h.ref_code || '',
+      h.sim_bot_dir != null ? h.sim_bot_dir : '',
+      h.sim_ref_dir != null ? h.sim_ref_dir : '',
+    ].join(','));
   }
   navigator.clipboard.writeText(lines.join('\n')).then(() => {
     const orig = elBtnCopy.textContent;
@@ -232,7 +321,7 @@ function resetUI() {
   elCounter.hidden = true;
   elStats.hidden = true;
   elStatsBars.innerHTML = '';
-  elBody.innerHTML = '<tr id="placeholder-row"><td colspan="3" class="placeholder">Enter domains and click Lookup</td></tr>';
+  elBody.innerHTML = '<tr id="placeholder-row"><td colspan="7" class="placeholder">Enter domains and click Lookup</td></tr>';
   results = [];
   total = 0;
   done = 0;
