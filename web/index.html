@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WHOIS Bulk Lookup</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1>WHOIS Bulk Lookup</h1>
+    </header>
+
+    <main class="app-body">
+      <!-- Left panel: input -->
+      <aside class="panel panel-input">
+        <label class="label" for="domains-input">Domains <span class="hint">(one per line)</span></label>
+        <textarea
+          id="domains-input"
+          class="textarea"
+          placeholder="example.nl&#10;test.fi&#10;google.com"
+          spellcheck="false"
+        ></textarea>
+
+        <div class="input-actions">
+          <button id="btn-lookup" class="btn btn-primary">Lookup</button>
+          <button id="btn-new" class="btn btn-secondary" hidden>New Lookup</button>
+        </div>
+
+        <div id="counter" class="counter" hidden></div>
+      </aside>
+
+      <!-- Right panel: results -->
+      <section class="panel panel-results">
+        <div class="results-header">
+          <h2 class="section-title">Results</h2>
+          <div class="results-actions">
+            <button id="btn-copy" class="btn btn-ghost" hidden>Copy CSV</button>
+          </div>
+        </div>
+
+        <div id="progress" class="progress-bar-wrap" hidden>
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+
+        <div class="table-wrap">
+          <table id="results-table" class="results-table">
+            <thead>
+              <tr>
+                <th>Domain</th>
+                <th>Registrar</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody id="results-body">
+              <tr id="placeholder-row">
+                <td colspan="3" class="placeholder">Enter domains and click Lookup</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Stats -->
+        <div id="stats-section" class="stats-section" hidden>
+          <h2 class="section-title">Registrar Stats</h2>
+          <div id="stats-bars" class="stats-bars"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
