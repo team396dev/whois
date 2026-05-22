@@ -231,6 +231,7 @@ html, body {
 
 .cell-error { color: var(--error); }
 .cell-registrar { color: var(--text); }
+.cell-loading { color: var(--muted); font-style: italic; }
 
 /* Stats */
 .stats-section {

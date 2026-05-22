@@ -15,6 +15,8 @@ const elStatsBars = $('stats-bars');
 const elPlaceholder = $('placeholder-row');
 
 let results = [];
+let resultMap = {}; // domain -> {index, data}
+let domainOrder = [];
 let total = 0;
 let done = 0;
 
@@ -57,6 +59,8 @@ function startLookup() {
   if (domains.length === 0) return;
 
   results = [];
+  resultMap = {};
+  domainOrder = [...domains];
   total = domains.length;
   done = 0;
 
@@ -67,6 +71,11 @@ function startLookup() {
   elBtnCopy.hidden = true;
   elBtnNew.hidden = true;
   elBtnLookup.disabled = true;
+
+  // Pre-render rows in input order with loading placeholders
+  for (const domain of domainOrder) {
+    prependLoadingRow(domain);
+  }
 
   elProgress.hidden = false;
   elProgressBar.style.width = '0%';
@@ -114,8 +123,9 @@ function handleEvent(json) {
   }
 
   results.push(ev);
+  resultMap[ev.domain] = ev;
   done++;
-  appendRow(ev);
+  fillRow(ev);
 
   const pct = Math.round((done / total) * 100);
   elProgressBar.style.width = pct + '%';
@@ -123,13 +133,29 @@ function handleEvent(json) {
 }
 
 // ── Row rendering ─────────────────────────────────────────────────────────────
-function appendRow(r) {
+function prependLoadingRow(domain) {
   const tr = document.createElement('tr');
+  tr.id = 'row-' + CSS.escape(domain);
 
-  // Domain
   const tdDomain = document.createElement('td');
-  tdDomain.textContent = r.domain;
+  tdDomain.textContent = domain;
   tr.appendChild(tdDomain);
+
+  const tdLoading = document.createElement('td');
+  tdLoading.colSpan = 6;
+  tdLoading.className = 'cell-loading';
+  tdLoading.textContent = '…';
+  tr.appendChild(tdLoading);
+
+  elBody.appendChild(tr);
+}
+
+function fillRow(r) {
+  const tr = document.getElementById('row-' + CSS.escape(r.domain));
+  if (!tr) return;
+
+  // Remove loading placeholder cells
+  while (tr.cells.length > 1) tr.deleteCell(1);
 
   // Registrar
   const tdReg = document.createElement('td');
@@ -158,15 +184,12 @@ function appendRow(r) {
     tr.appendChild(makeCodeCell(h.ref_code));
     tr.appendChild(makeSimCell(h.sim_bot_dir, h.sim_ref_dir));
 
-    // Flag row if either similarity is low
     const sims = [h.sim_bot_dir, h.sim_ref_dir].filter(v => v != null);
     if (sims.some(v => v < 70)) tr.classList.add('row-cloak');
   } else {
     const errMsg = h ? h.http_error : '—';
     tr.appendChild(makeEmptyCell(4, errMsg));
   }
-
-  elBody.appendChild(tr);
 }
 
 function makeCodeCell(code) {
@@ -323,6 +346,8 @@ function resetUI() {
   elStatsBars.innerHTML = '';
   elBody.innerHTML = '<tr id="placeholder-row"><td colspan="7" class="placeholder">Enter domains and click Lookup</td></tr>';
   results = [];
+  resultMap = {};
+  domainOrder = [];
   total = 0;
   done = 0;
 }
