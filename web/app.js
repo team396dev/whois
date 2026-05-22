@@ -15,7 +15,8 @@ const elStatsBars = $('stats-bars');
 const elPlaceholder = $('placeholder-row');
 
 let results = [];
-let resultMap = {}; // domain -> {index, data}
+let resultMap = {};     // domain -> result object (for CSV)
+let rowElements = new Map(); // domain -> <tr> element
 let domainOrder = [];
 let total = 0;
 let done = 0;
@@ -52,7 +53,7 @@ function parseDomains(raw) {
 // ── Lookup ────────────────────────────────────────────────────────────────────
 elBtnLookup.addEventListener('click', startLookup);
 elBtnNew.addEventListener('click', resetUI);
-elBtnCopy.addEventListener('click', copyCSV);
+elBtnCopy.addEventListener('click', copyTSV);
 
 function startLookup() {
   const domains = parseDomains(elInput.value);
@@ -60,6 +61,7 @@ function startLookup() {
 
   results = [];
   resultMap = {};
+  rowElements = new Map();
   domainOrder = [...domains];
   total = domains.length;
   done = 0;
@@ -135,7 +137,7 @@ function handleEvent(json) {
 // ── Row rendering ─────────────────────────────────────────────────────────────
 function prependLoadingRow(domain) {
   const tr = document.createElement('tr');
-  tr.id = 'row-' + CSS.escape(domain);
+  rowElements.set(domain, tr);
 
   const tdDomain = document.createElement('td');
   tdDomain.textContent = domain;
@@ -151,7 +153,7 @@ function prependLoadingRow(domain) {
 }
 
 function fillRow(r) {
-  const tr = document.getElementById('row-' + CSS.escape(r.domain));
+  const tr = rowElements.get(r.domain);
   if (!tr) return;
 
   // Remove loading placeholder cells
@@ -302,35 +304,31 @@ function renderStats(stats, total) {
   elStats.hidden = false;
 }
 
-// ── CSV copy ──────────────────────────────────────────────────────────────────
-function copyCSV() {
-  const lines = ['domain,registrar,source,direct_code,bot_code,ref_code,sim_bot,sim_ref'];
-  for (const r of results) {
+// ── TSV copy ──────────────────────────────────────────────────────────────────
+function copyTSV() {
+  const T = '\t';
+  const lines = ['domain\tregistrar\tsource\tdirect_code\tbot_code\tref_code\tsim_bot\tsim_ref'];
+  for (const domain of domainOrder) {
+    const r = resultMap[domain];
+    if (!r) continue;
     const reg = r.source === 'error' ? '' : (r.registrar || '');
     const h = r.http || {};
     lines.push([
       r.domain,
-      csvEscape(reg),
+      reg,
       r.source,
       h.direct_code || '',
       h.bot_code || '',
       h.ref_code || '',
       h.sim_bot_dir != null ? h.sim_bot_dir : '',
       h.sim_ref_dir != null ? h.sim_ref_dir : '',
-    ].join(','));
+    ].join(T));
   }
   navigator.clipboard.writeText(lines.join('\n')).then(() => {
     const orig = elBtnCopy.textContent;
     elBtnCopy.textContent = 'Copied!';
     setTimeout(() => { elBtnCopy.textContent = orig; }, 1500);
   });
-}
-
-function csvEscape(s) {
-  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-    return '"' + s.replace(/"/g, '""') + '"';
-  }
-  return s;
 }
 
 // ── Reset ─────────────────────────────────────────────────────────────────────
@@ -347,6 +345,7 @@ function resetUI() {
   elBody.innerHTML = '<tr id="placeholder-row"><td colspan="7" class="placeholder">Enter domains and click Lookup</td></tr>';
   results = [];
   resultMap = {};
+  rowElements = new Map();
   domainOrder = [];
   total = 0;
   done = 0;
