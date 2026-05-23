@@ -325,6 +325,101 @@ html, body {
   background: rgba(239, 68, 68, 0.11) !important;
 }
 
+/* Footer */
+.app-footer {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px 0 2px;
+  flex-shrink: 0;
+}
+.footer-link {
+  color: #2AABEE;
+  text-decoration: none;
+  font-weight: 500;
+}
+.footer-link:hover { text-decoration: underline; }
+
+/* Telegram popup */
+.tg-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+.tg-popup-overlay[hidden] { display: none; }
+
+.tg-popup {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 36px 32px 32px;
+  max-width: 420px;
+  width: calc(100% - 32px);
+  text-align: center;
+  position: relative;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  animation: popup-in 0.22s ease;
+}
+@keyframes popup-in {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.tg-popup-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.tg-popup-close:hover { color: var(--text); background: var(--surface-2); }
+
+.tg-popup-icon { margin-bottom: 16px; }
+
+.tg-popup-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+  letter-spacing: -0.3px;
+}
+
+.tg-popup-text {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin-bottom: 24px;
+}
+.tg-popup-text strong { color: #2AABEE; font-weight: 600; }
+
+.tg-popup-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #2AABEE;
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 8px;
+  transition: background 0.15s, transform 0.1s;
+}
+.tg-popup-btn:hover { background: #1a9de0; transform: translateY(-1px); }
+.tg-popup-btn:active { transform: translateY(0); }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

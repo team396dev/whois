@@ -352,3 +352,22 @@ function resetUI() {
 }
 
 updateCounter();
+
+// ── Telegram popup (cookie-gated) ─────────────────────────────────────────────
+(function () {
+  const COOKIE = '369_tg_closed';
+  const hasCookie = document.cookie.split('; ').some(c => c.startsWith(COOKIE + '='));
+  if (hasCookie) return;
+
+  const overlay = document.getElementById('tg-popup');
+  overlay.removeAttribute('hidden');
+
+  function close() {
+    overlay.setAttribute('hidden', '');
+    const exp = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+    document.cookie = COOKIE + '=1; expires=' + exp + '; path=/';
+  }
+
+  document.getElementById('tg-popup-close').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+})();
