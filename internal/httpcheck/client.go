@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -29,14 +30,29 @@ var checkClient = &http.Client{
 	},
 }
 
+// AltInfo holds a single <link rel="alternate"> tag.
+type AltInfo struct {
+	Href     string `json:"href"`
+	HrefLang string `json:"hreflang,omitempty"`
+	Relation string `json:"relation"` // "match"|"subfolder"|"subdomain"|"other_site"
+}
+
+// CanonInfo holds parsed canonical and alternate data from <head>.
+type CanonInfo struct {
+	URL      string    `json:"url,omitempty"`
+	Relation string    `json:"relation"` // "match"|"subfolder"|"subdomain"|"other_site"|"none"
+	Alts     []AltInfo `json:"alts,omitempty"`
+}
+
 // Result holds HTTP status codes and content similarity metrics for a domain.
 type Result struct {
-	DirectCode int    `json:"direct_code"`           // Chrome UA, no referer
-	BotCode    int    `json:"bot_code"`              // Googlebot UA
-	RefCode    int    `json:"ref_code"`              // Chrome UA + Referer: google.com
-	SimBotDir  *int   `json:"sim_bot_dir,omitempty"` // Googlebot vs Direct similarity (0-100)
-	SimRefDir  *int   `json:"sim_ref_dir,omitempty"` // Google-ref'd vs Direct similarity (0-100)
-	Error      string `json:"http_error,omitempty"`
+	DirectCode int       `json:"direct_code"`           // Chrome UA, no referer
+	BotCode    int       `json:"bot_code"`              // Googlebot UA
+	RefCode    int       `json:"ref_code"`              // Chrome UA + Referer: google.com
+	SimBotDir  *int      `json:"sim_bot_dir,omitempty"` // Googlebot vs Direct similarity (0-100)
+	SimRefDir  *int      `json:"sim_ref_dir,omitempty"` // Google-ref'd vs Direct similarity (0-100)
+	Canon      *CanonInfo `json:"canon,omitempty"`
+	Error      string    `json:"http_error,omitempty"`
 }
 
 type fetchResp struct {
@@ -47,6 +63,7 @@ type fetchResp struct {
 
 // Check performs three concurrent HTTP GETs to https://domain and compares page content.
 func Check(domain string) Result {
+	domain = strings.TrimPrefix(strings.ToLower(domain), "www.")
 	url := "https://" + domain
 
 	directCh := make(chan fetchResp, 1)
@@ -80,7 +97,6 @@ func Check(domain string) Result {
 		RefCode:    ref.code,
 	}
 
-	// Only compare content when both responses are successful (meaningful HTML).
 	if direct.err == nil && bot.err == nil && is2xx(direct.code) && is2xx(bot.code) {
 		v := textSimilarity(direct.body, bot.body)
 		r.SimBotDir = &v
@@ -88,6 +104,9 @@ func Check(domain string) Result {
 	if direct.err == nil && ref.err == nil && is2xx(direct.code) && is2xx(ref.code) {
 		v := textSimilarity(direct.body, ref.body)
 		r.SimRefDir = &v
+	}
+	if direct.err == nil && is2xx(direct.code) {
+		r.Canon = parseCanonical(direct.body, domain)
 	}
 
 	return r
@@ -136,7 +155,70 @@ func fetch(url, userAgent, referer string) (int, string, error) {
 	return resp.StatusCode, string(body), nil
 }
 
-var tagRe = regexp.MustCompile(`<[^>]+>`)
+var (
+	tagRe      = regexp.MustCompile(`<[^>]+>`)
+	canonRe    = regexp.MustCompile(`(?i)<link[^>]+rel=["']canonical["'][^>]*>|<link[^>]+href=["']([^"']+)["'][^>]*rel=["']canonical["'][^>]*>`)
+	canonHref  = regexp.MustCompile(`(?i)href=["']([^"']+)["']`)
+	altRe      = regexp.MustCompile(`(?i)<link[^>]+rel=["']alternate["'][^>]*>`)
+	altHrefRe  = regexp.MustCompile(`(?i)href=["']([^"']+)["']`)
+	altLangRe  = regexp.MustCompile(`(?i)hreflang=["']([^"']+)["']`)
+)
+
+func classifyHref(href, domain string) string {
+	u, err := url.Parse(href)
+	if err != nil {
+		return "other_site"
+	}
+	host := strings.TrimPrefix(strings.ToLower(u.Hostname()), "www.")
+	if host == domain {
+		p := u.Path
+		if p == "" || p == "/" {
+			return "match"
+		}
+		return "subfolder"
+	}
+	if strings.HasSuffix(host, "."+domain) {
+		return "subdomain"
+	}
+	return "other_site"
+}
+
+func parseCanonical(body, domain string) *CanonInfo {
+	// extract <head> only to avoid false matches in body text
+	head := body
+	if i := strings.Index(strings.ToLower(body), "</head>"); i > 0 {
+		head = body[:i]
+	}
+
+	info := &CanonInfo{Relation: "none"}
+
+	if m := canonRe.FindString(head); m != "" {
+		if h := canonHref.FindStringSubmatch(m); len(h) > 1 {
+			info.URL = h[1]
+			info.Relation = classifyHref(h[1], domain)
+		}
+	}
+
+	for _, tag := range altRe.FindAllString(head, -1) {
+		hm := altHrefRe.FindStringSubmatch(tag)
+		if len(hm) < 2 {
+			continue
+		}
+		ai := AltInfo{
+			Href:     hm[1],
+			Relation: classifyHref(hm[1], domain),
+		}
+		if lm := altLangRe.FindStringSubmatch(tag); len(lm) > 1 {
+			ai.HrefLang = lm[1]
+		}
+		info.Alts = append(info.Alts, ai)
+	}
+
+	if info.URL == "" && len(info.Alts) == 0 {
+		return nil
+	}
+	return info
+}
 
 func stripTags(html string) string {
 	return tagRe.ReplaceAllString(html, " ")

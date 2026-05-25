@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"whois-parser/internal/contentcheck"
 	"whois-parser/internal/httpcheck"
 	"whois-parser/internal/rdap"
 	"whois-parser/internal/whois"
@@ -14,11 +15,12 @@ import (
 )
 
 type Result struct {
-	Domain    string            `json:"domain"`
-	Registrar string            `json:"registrar,omitempty"`
-	Source    string            `json:"source"` // "whois" | "rdap" | "error"
-	Error     string            `json:"error,omitempty"`
-	HTTP      *httpcheck.Result `json:"http,omitempty"`
+	Domain    string               `json:"domain"`
+	Registrar string               `json:"registrar,omitempty"`
+	Source    string               `json:"source"` // "whois" | "rdap" | "error"
+	Error     string               `json:"error,omitempty"`
+	HTTP      *httpcheck.Result    `json:"http,omitempty"`
+	Content   *contentcheck.Result `json:"content,omitempty"`
 }
 
 // per-server rate limiters to avoid hammering WHOIS servers.
@@ -50,17 +52,22 @@ func extractTLD(domain string) string {
 	return parts[len(parts)-1]
 }
 
-// Lookup resolves the registrar for a domain via WHOIS/RDAP and runs HTTP checks concurrently.
-func Lookup(domain string) Result {
+// Lookup resolves WHOIS/RDAP, runs HTTP checks, and optionally checks content terms — all concurrently.
+func Lookup(domain string, terms []string) Result {
 	domain = strings.ToLower(strings.TrimSpace(domain))
 	tld := extractTLD(domain)
 	if tld == "" {
 		return Result{Domain: domain, Source: "error", Error: "invalid domain"}
 	}
 
-	// HTTP checks run concurrently with WHOIS/RDAP to minimise total latency.
 	httpCh := make(chan httpcheck.Result, 1)
 	go func() { httpCh <- httpcheck.Check(domain) }()
+
+	var contentCh chan contentcheck.Result
+	if len(terms) > 0 {
+		contentCh = make(chan contentcheck.Result, 1)
+		go func() { contentCh <- contentcheck.Check(domain, terms) }()
+	}
 
 	var registrar, source string
 
@@ -77,7 +84,6 @@ func Lookup(domain string) Result {
 			}
 		}
 	} else {
-		// Unknown TLD — try IANA two-step discovery
 		raw, err := whois.QueryIANA(domain)
 		if err == nil {
 			reg := whois.ExtractRegistrar(raw, []string{"Registrar:", "registrar:", "Registrar Name:"})
@@ -88,7 +94,6 @@ func Lookup(domain string) Result {
 	}
 
 	if registrar == "" {
-		// RDAP fallback
 		reg, err := rdap.Query(domain)
 		if err == nil && reg != "" {
 			registrar, source = reg, "rdap"
@@ -97,8 +102,18 @@ func Lookup(domain string) Result {
 
 	httpResult := <-httpCh
 
-	if registrar == "" {
-		return Result{Domain: domain, Source: "error", Error: "registrar not found", HTTP: &httpResult}
+	res := Result{Domain: domain, Source: source, HTTP: &httpResult}
+	if registrar != "" {
+		res.Registrar = registrar
+	} else {
+		res.Source = "error"
+		res.Error = "registrar not found"
 	}
-	return Result{Domain: domain, Registrar: registrar, Source: source, HTTP: &httpResult}
+
+	if contentCh != nil {
+		cr := <-contentCh
+		res.Content = &cr
+	}
+
+	return res
 }

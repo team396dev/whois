@@ -39,6 +39,7 @@ func normalizeDomain(d string) string {
 
 type lookupRequest struct {
 	Domains []string `json:"domains"`
+	Terms   []string `json:"terms,omitempty"`
 }
 
 // LookupHandler handles POST /api/lookup and streams results as SSE.
@@ -54,7 +55,6 @@ func LookupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Deduplicate and sanitize (also strips URL format)
 	seen := map[string]bool{}
 	var domains []string
 	for _, d := range req.Domains {
@@ -66,6 +66,13 @@ func LookupHandler(w http.ResponseWriter, r *http.Request) {
 		domains = append(domains, d)
 	}
 
+	var terms []string
+	for _, t := range req.Terms {
+		if t = strings.TrimSpace(t); t != "" {
+			terms = append(terms, t)
+		}
+	}
+
 	limit := maxDomains()
 	if len(domains) > limit {
 		domains = domains[:limit]
@@ -75,5 +82,5 @@ func LookupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	StreamResults(w, r, domains)
+	StreamResults(w, r, domains, terms)
 }

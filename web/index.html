@@ -23,6 +23,19 @@
           spellcheck="false"
         ></textarea>
 
+        <label class="label">Terms file <span class="hint">optional, .txt one per line</span></label>
+        <div class="file-drop" id="file-drop">
+          <input type="file" id="file-input" accept=".txt" class="file-input-hidden">
+          <div class="file-drop-inner">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span id="file-label">Drop file or click to browse</span>
+          </div>
+        </div>
+
         <div class="input-actions">
           <button id="btn-lookup" class="btn btn-primary">Lookup</button>
           <button id="btn-new" class="btn btn-secondary" hidden>New Lookup</button>
@@ -46,20 +59,21 @@
 
         <div class="table-wrap">
           <table id="results-table" class="results-table">
-            <thead>
-              <tr>
+            <thead id="results-thead">
+              <tr id="results-header-row">
                 <th>Domain</th>
                 <th>Registrar</th>
                 <th>Source</th>
-                <th title="HTTP status — Chrome, no Referer">Direct</th>
+                <th title="HTTP status — no UA, no Referer">Direct</th>
                 <th title="HTTP status — Googlebot UA">Bot</th>
                 <th title="HTTP status — Chrome + Referer: google.com">Ref</th>
                 <th title="Content similarity: Googlebot vs Direct · Google-Ref vs Direct">Similarity</th>
+                <th title="Canonical &amp; alternate tags">Canon</th>
               </tr>
             </thead>
             <tbody id="results-body">
               <tr id="placeholder-row">
-                <td colspan="7" class="placeholder">Enter domains and click Lookup</td>
+                <td colspan="8" class="placeholder">Enter domains and click Lookup</td>
               </tr>
             </tbody>
           </table>
@@ -77,6 +91,18 @@
       369 Whois — iGaming whois detector by
       <a href="https://t.me/teams_369" rel="dofollow" target="_blank" class="footer-link">369 Team</a>
     </footer>
+  </div>
+
+  <!-- Canon tooltip -->
+  <div id="canon-tooltip" class="canon-tooltip" hidden></div>
+
+  <!-- Content breakdown popup -->
+  <div id="cc-popup" class="cc-popup-overlay" hidden>
+    <div class="cc-popup">
+      <button id="cc-popup-close" class="tg-popup-close">&times;</button>
+      <h3 class="cc-popup-title" id="cc-popup-title"></h3>
+      <div id="cc-popup-body" class="cc-popup-body"></div>
+    </div>
   </div>
 
   <!-- Telegram popup -->

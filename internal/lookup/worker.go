@@ -15,14 +15,13 @@ func numWorkers() int {
 	}
 	n := runtime.NumCPU()
 	if n < 4 {
-		n = 4 // minimum concurrency for I/O-bound work
+		n = 4
 	}
 	return n
 }
 
 // RunBatch fans out lookups across a worker pool, streaming results to resultCh.
-// resultCh is closed when all domains have been processed.
-func RunBatch(domains []string, resultCh chan<- Result) {
+func RunBatch(domains []string, terms []string, resultCh chan<- Result) {
 	workers := numWorkers()
 	jobs := make(chan string, len(domains))
 
@@ -32,7 +31,7 @@ func RunBatch(domains []string, resultCh chan<- Result) {
 		go func() {
 			defer wg.Done()
 			for domain := range jobs {
-				resultCh <- Lookup(domain)
+				resultCh <- Lookup(domain, terms)
 			}
 		}()
 	}

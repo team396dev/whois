@@ -15,7 +15,7 @@ type doneEvent struct {
 }
 
 // StreamResults runs the batch lookup and pushes each result as an SSE event.
-func StreamResults(w http.ResponseWriter, r *http.Request, domains []string) {
+func StreamResults(w http.ResponseWriter, r *http.Request, domains []string, terms []string) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming not supported", http.StatusInternalServerError)
@@ -30,7 +30,7 @@ func StreamResults(w http.ResponseWriter, r *http.Request, domains []string) {
 	flusher.Flush()
 
 	resultCh := make(chan lookup.Result, len(domains))
-	go lookup.RunBatch(domains, resultCh)
+	go lookup.RunBatch(domains, terms, resultCh)
 
 	stats := map[string]int{}
 	total := 0
