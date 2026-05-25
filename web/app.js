@@ -466,6 +466,14 @@ function esc(s) {
 
 updateCounter();
 
+// ── Help popup ────────────────────────────────────────────────────────────────
+(function () {
+  const overlay = $('help-popup');
+  $('btn-help').addEventListener('click', () => { overlay.hidden = false; });
+  $('help-close').addEventListener('click', () => { overlay.hidden = true; });
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.hidden = true; });
+})();
+
 // ── Telegram popup ────────────────────────────────────────────────────────────
 (function () {
   const COOKIE = '369_tg_closed';

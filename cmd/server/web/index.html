@@ -9,7 +9,10 @@
 <body>
   <div class="app">
     <header class="app-header">
-      <h1>WHOIS Bulk Lookup</h1>
+      <div class="header-title">
+        <h1>WHOIS Bulk Lookup</h1>
+        <button id="btn-help" class="help-btn" aria-label="Что умеет сервис">Зачем это надо?</button>
+      </div>
     </header>
 
     <main class="app-body">
@@ -91,6 +94,44 @@
       369 Whois — iGaming whois detector by
       <a href="https://t.me/teams_369" rel="dofollow" target="_blank" class="footer-link">369 Team</a>
     </footer>
+  </div>
+
+  <!-- Help popup -->
+  <div id="help-popup" class="help-overlay" hidden>
+    <div class="help-modal">
+      <button id="help-close" class="tg-popup-close" aria-label="Закрыть">&times;</button>
+      <h3 class="help-title">Что умеет сервис</h3>
+      <ul class="help-list">
+        <li>
+          <span class="help-icon">🔍</span>
+          <div>
+            <strong>WHOIS / RDAP</strong>
+            <p>Определяет регистратора доменов — через WHOIS или RDAP как фолбэк. Поддерживает все популярные зоны.</p>
+          </div>
+        </li>
+        <li>
+          <span class="help-icon">🕵️</span>
+          <div>
+            <strong>Детект клоакинга</strong>
+            <p>Запрашивает каждый сайт тремя способами (без UA, Googlebot, Chrome+Referer) и сравнивает схожесть страниц. Низкий процент — сигнал клоакинга.</p>
+          </div>
+        </li>
+        <li>
+          <span class="help-icon">🔗</span>
+          <div>
+            <strong>Canonical &amp; Alternate</strong>
+            <p>Парсит теги <code>&lt;link rel="canonical"&gt;</code> и все <code>alternate</code>, показывает куда они ведут — та же страница, папка, поддомен или сторонний домен.</p>
+          </div>
+        </li>
+        <li>
+          <span class="help-icon">📄</span>
+          <div>
+            <strong>Чекер вхождений</strong>
+            <p>Загрузите .txt со списком ключей — сервис посчитает их на странице отдельно для каждого типа запроса. Удобно для поиска микро-клоак по чувствительным словам.</p>
+          </div>
+        </li>
+      </ul>
+    </div>
   </div>
 
   <!-- Canon tooltip -->

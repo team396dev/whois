@@ -420,6 +420,108 @@ html, body {
 .tg-popup-btn:hover { background: #1a9de0; transform: translateY(-1px); }
 .tg-popup-btn:active { transform: translateY(0); }
 
+/* ── Header title + help button ───────────────────────────────────────────── */
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.help-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.help-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(99,102,241,0.08);
+}
+
+/* ── Help popup ───────────────────────────────────────────────────────────── */
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 700;
+  backdrop-filter: blur(2px);
+}
+.help-overlay[hidden] { display: none; }
+
+.help-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px 28px 24px;
+  max-width: 460px;
+  width: calc(100% - 32px);
+  position: relative;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  animation: popup-in 0.18s ease;
+}
+
+.help-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 20px;
+  letter-spacing: -0.2px;
+}
+
+.help-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.help-list li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.help-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.help-list strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.help-list p {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.help-list code {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 11px;
+  background: var(--surface-2);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: var(--text);
+}
+
 /* ── File drop zone ───────────────────────────────────────────────────────── */
 .file-drop {
   position: relative;
